@@ -14,7 +14,8 @@ extern void init_darr(Darr* a);
 
 extern void clear_darr(Darr* a);
 
-extern bool merge_darr(Darr* a, Darr* b, Darr* c);
+// Extend array `a` by all elements in `b`.
+extern bool extend(Darr* a, Darr const* b);
 
 extern bool push(Darr* a, int x);
 

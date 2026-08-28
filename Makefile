@@ -7,20 +7,25 @@ SRCDIR = src
 BUILDDIR = build
 TESTSDIR = tests
 EXECUTABLE = $(BUILDDIR)/dot-simplify
+AUXOBJS = $(BUILDDIR)/bst.o $(BUILDDIR)/darr.o $(BUILDDIR)/input.o
 
 all: $(EXECUTABLE)
 
-$(EXECUTABLE): $(SRCDIR)/dot-simplify.c $(BUILDDIR)/bst.o
-	$(CC) $(CFLAGS) -c $< -o $(BUILDDIR)/dot-simplify.o
-	$(CC) -o $@ $(BUILDDIR)/dot-simplify.o $(BUILDDIR)/bst.o
+$(EXECUTABLE): $(BUILDDIR)/dot-simplify.o $(AUXOBJS)
+	$(CC) -o $@ $^
 
-$(BUILDDIR)/bst.o: $(SRCDIR)/bst.c $(SRCDIR)/bst.h
-	mkdir -p $(BUILDDIR)
+$(BUILDDIR)/dot-simplify.o: $(SRCDIR)/dot-simplify.c $(BUILDDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/%.h $(BUILDDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR):
+	mkdir -p $(BUILDDIR)
 
 clean:
 	if [ -d "$(BUILDDIR)" ]; then rm -rf "$(BUILDDIR)"; fi
-	find "$(TESTSDIR)" -name "*.myout" -delete
+	find "$(TESTSDIR)" -name "*.t" -delete
 
 test: $(EXECUTABLE) test.sh $(TESTSDIR)
 	./test.sh

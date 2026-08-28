@@ -1,73 +1,62 @@
 # dot-simplify
 
-A project that lets you simplify graph descriptions in a sublanguage of DOT.
+## DOT, GraphViz and graph descriptions
 
-(<https://dreampuf.github.io/GraphvizOnline/>)
+A project that lets you simplify graph descriptions in a sublanguage of
+[DOT](https://en.wikipedia.org/wiki/DOT_(graph_description_language)). A graph
+described in DOT can be drawn using `dot` program, a part of
+[GraphViz](https://en.wikipedia.org/wiki/Graphviz) package. Here's an online
+[tool](<https://dreampuf.github.io/GraphvizOnline/>) to see how this works.
 
-The data language and language of the program result are described below using context-free grammar in the extended BNF notation:
+This project takes a description of a directed graph (`digraph`) without
+multiple edges (`strict`) conforming to the grammar provided below, and
+simplifies that description. The grammar allows descriptions using subgraphs and
+nesting, and the output description is a simple list of neighbouring nodes for
+each node in the graph.
 
-    the names of the auxiliary symbols are identifiers composed of lowercase letters,
+Project works for a Linux system with a working gcc compiler, to run tests you
+should have [valgrind](https://valgrind.org/). A [Makefile](Makefile) with a
+default compilation command is supplied. It also has phony targets clean and
+test. Running `make` produces a `build/dot-simplify` binary, which operates on
+standard input and standard output, with no support for files as command line
+arguments.
 
-    the names of the final symbols are identifiers composed of capital letters,
+## Demo
 
-    strings included in quotes are anonymous end symbols,
+![demo](assets/demo.gif)
 
-    the initial symbol is the auxiliary symbol on the left side of the first production,
+## Input descriptions
 
-    between the left and right side of production is the sign =,
+The following is a context-free grammar in the extended BNF notation which
+describes possible input:
 
-    At the end of production there is a sign ;,
+```text
+graph = "strict" "digraph" subgraph ;
+subgraph = "{" { nodes { "->" nodes } } "}" ;
+nodes = ID | subgraph ;
+```
 
-    sign |symbolizes the alternative,
+Auxiliary symbols are identifiers composed of lowercase letters, final symbols
+are either composed of capital letters or are encased in quotes. Symbols
+surrounded by braces can repeat zero or more times. `|` means an alternative,
+`;` is the end of a rule. Starting symbol is `graph`, `ID` means a non-negative
+integer without leading zeros that can be stored in an `int` type.
 
-    a fragment that can repeat itself zero or more times is included in the brace brackets { ... }.
+The graph has a hierarchical structure. It consists of subgraphs, which can be
+nested. Subgraphs are not separate. A node or an edge can belong to multiple
+subgraphs. Each node and every edge of the subgraph also belong to the graph in
+which this subgraph is nested. A graph node is represented by a non-negative
+integer ID. `->` indicates the direction of edges. `G -> H` means for each node
+in subgraph `G` there is an edge to every node in subgraph `H`. If either `G` or
+`H` are single nodes instead, they are treated as a subgraph with one node.
 
-The data syntax is the word of the language described by grammar:
+In case of any doubts, consult the linked online
+[tool](<https://dreampuf.github.io/GraphvizOnline/>).
 
-graf = "strict" "digraph" podgraf ;
-podgraf = "{" { węzły { "->" węzły } } "}" ;
-węzły = ID | podgraf ;
-
-At the program's entry, anonymous end symbols correspond to the strings of characters that in grammar are included in quotes.
-
-The equivalent of the end symbol IDa decimally negative integer is recorded without insignificant leading zeros.
-
-In the program data, before and after the final symbols, can occur, in any number, spaces and ends of the row.
-
-The data of the program describes the directed graph (digraph) without multiple edges (strict).
-
-The graph has a hierarchical structure. It consists of subgraphs, which can be freely nested.
-
-Subgraphs are not separate. A knot or edge can belong to multiple subgraphs.
-
-Each knot and every edge of the subgraph also belongs to the graph in which this subgraph is nested.
-
-The graph node is unequivocally represented by a non-negative integer ID, hereinafter referred to as the node number.
-
-Symbol ->indicates between which graph nodes are the edges:
-
-    if before or after ->There is a single knot w, this interpretation is the same as if instead of wthere was an infinity subgraph in which wis one knot,
-
-    record G -> H, where Gand Hare subgraphs, indicates that for each node usubgraph Gand for every node wsubgraph H, in the graph is directed edge from uto w.
-
-The program data language described here is a subset of the DOT language. If there are doubts about the interpretation of the data, it can be checked with the program dotor the service to which the link in the introduction is.
-Program result
+## Output format
 
 The result of the program is described by grammar:
 
-graf = "digraph" "{" { ID "->" "{" { ID } "}" } "}" ;
-
-The first row of the result is in the form of:
-
-digraph {
-
-The last row of the result is in the form of:
-
-}
-
-Between the first and last rows there is one line for each graph node. These poems are sorted in order of growing node numbers.
-
-A poem for a knot wIt starts with the number of this node. After that, there's a space, signs ->, another space and a sign {. At the end of the poem is a space and a sign }.
-
-Between the buckles is, orderly growing, a string of node numbers to which there is an edge from the node w. Each of these numbers is preceded by one space.
-Examples
+```text
+graph = "digraph" "{" { ID "->" "{" { ID } "}" } "}" ;
+```

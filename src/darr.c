@@ -4,10 +4,11 @@
 
 static size_t more(size_t size) { return 1 + size * 3 / 2; }
 
+// Reallocate the dynamic array if it reached full capacity.
 static bool realloc_darr(Darr* a) {
   if (a->size == a->capacity) {
     a->capacity = more(a->capacity);
-    if (NULL == (a->arr = reallocarray(a->arr, a->capacity, sizeof *(a->arr))))
+    if (NULL == (a->arr = realloc(a->arr, a->capacity * sizeof *(a->arr))))
       return false;
   }
   return true;
@@ -26,7 +27,17 @@ void clear_darr(Darr* a) {
   a->size = 0;
 }
 
-bool merge_darr(Darr* a, Darr* b, Darr* c) {}
+bool extend(Darr* a, Darr const* b) {
+  size_t new_minimal_capacity = a->size + b->size;
+  if (a->capacity < new_minimal_capacity) {
+    a->capacity = new_minimal_capacity;
+    if (NULL == (a->arr = realloc(a->arr, a->capacity * sizeof *(a->arr)))) {
+      return false;
+    }
+  }
+  for (size_t i = 0; i < b->size; ++i) a->arr[(a->size)++] = b->arr[i];
+  return true;
+}
 
 bool push(Darr* a, int x) {
   if (!realloc_darr(a)) return false;

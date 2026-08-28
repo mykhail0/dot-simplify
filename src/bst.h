@@ -17,6 +17,7 @@ void init_tree(Tree**);
 
 void delete_tree(Tree**);
 
+// Print the tree in infix traversal.
 void print_infix(Tree const*);
 
 /**

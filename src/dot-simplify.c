@@ -1,135 +1,135 @@
-#include <errno.h>
-#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "bst.h"
 #include "darr.h"
+#include "input.h"
 
-static const int STRTOI_FAIL = -1;
-static const int EQUAL_STRINGS = 0;
+// Enough buffer size to hold int. Also longer than "strict" or "digraph".
+#define BUFSZ 21
 
-// TODO strtok and getline to get words, abstracting over input, maybe could
-// just use read?
-char* next_word() {
-  static char* line = NULL;
-  static const char WHITESPACE[] = " \n";
-  // while
-}
+static char buffer[BUFSZ];
 
-static unsigned count_digits(int x) {
-  unsigned digits = 0;
-  if (x == 0) return 1;
-  while (x != 0) {
-    x /= 10;
-    ++digits;
+// All functions in this module that return `bool`, return `false` iff there was
+// some sort of error, either parsing, or memory.
+
+// `read_next` should be `false` iff the next word-token is already inside
+// `buffer`.
+static bool read_subgraph(Tree** g, Darr* v, bool read_next);
+
+static bool add_nodes(Tree** g, Darr v) {
+  for (size_t i = 0; i < v.size; ++i) {
+    if (!push_tree(g, &(v.arr[i]), 1, 0)) return false;
   }
-  return digits;
+  return true;
 }
 
-static int strtoi(char const* str) {
-  if (str == NULL) return STRTOI_FAIL;
-  errno = 0;
-  long l = strtol(str, NULL, 10);
-  if (errno == ERANGE || l < 0 || INT_MAX < l) return STRTOI_FAIL;
-  int i = i;
-
-  size_t string_length = strlen(str);
-  if (string_length != count_digits(i)) return STRTOI_FAIL;
-  char* converted = calloc(string_length + 1, sizeof *converted);
-  if (converted == NULL) return STRTOI_FAIL;
-
-  sprintf(converted, "%d", i);
-  bool success = strcmp(converted, str) == EQUAL_STRINGS;
-  free(converted);
-
-  return success ? i : STRTOI_FAIL;
+static bool add_edges(Tree** g, Darr from, Darr to) {
+  int edge[2];
+  for (size_t i = 0; i < from.size; ++i) {
+    edge[0] = from.arr[i];
+    for (size_t j = 0; j < to.size; ++j) {
+      edge[1] = to.arr[j];
+      if (!push_tree(g, edge, 2, 0)) return false;
+    }
+  }
+  return true;
 }
 
-static bool read_subgraph(Tree** g, Darr* v, char* word) {
-  init_darr(v);
-  if (word == NULL) word = next_word();
-  if (strcmp(word, "{") == EQUAL_STRINGS) {
-    while (strcmp(word, "}") != EQUAL_STRINGS) {
-      Darr from;
-      if (!read_subgraph(g, &from, word)) return false;
-      Darr nv;
-      init_darr(&nv);
-      bool success = merge_darr(v, &from, &nv);
+static bool input_graph(Tree** g, Darr* v) {
+  if (!next_word(BUFSZ, buffer)) return false;
+  while (strcmp(buffer, "}") != EQUAL_STRINGS) {
+    // Input the `from` subgraph.
+    Darr from;
+    if (!read_subgraph(g, &from, false)) return false;
+    if (!extend(v, &from) || !next_word(BUFSZ, buffer) || !add_nodes(g, from)) {
       clear_darr(v);
-      if (!success) {
+      clear_darr(&from);
+      return false;
+    }
+
+    // Read the chain of `to` graphs, reassigning `from` in each iteration,
+    // while adding edges.
+    while (strcmp(buffer, "->") == EQUAL_STRINGS) {
+      // Read the subgraph.
+      Darr to;
+      if (!read_subgraph(g, &to, true)) {
+        clear_darr(v);
         clear_darr(&from);
         return false;
       }
-      *v = nv;
-      word = next_word();
-      while (strcmp(word, "->") == EQUAL_STRINGS) {
-        Darr to;
-        if (!read_subgraph(g, &to, NULL)) {
-          clear_darr(v);
-          clear_darr(&from);
-          return false;
-        }
-        int edge[2];
-        for (size_t i = 0; i < from.size; ++i) {
-          edge[0] = from.arr[i];
-          for (size_t j = 0; j < to.size; ++j) {
-            edge[1] = to.arr[j];
-            if (!push_tree(g, edge, 2, 0)) {
-              clear_darr(v);
-              clear_darr(&from);
-              clear_darr(&to);
-              return false;
-            }
-          }
-        }
-        clear_darr(&from);
-        from = to;
-        Darr nv;
-        init_darr(&nv);
-        merge_darr(v, &from, &nv);
+
+      // Add edges.
+      bool success = add_edges(g, from, to);
+      clear_darr(&from);
+      if (!success) {
+        clear_darr(&to);
         clear_darr(v);
-        *v = nv;
-        word = next_word();
+        return false;
+      }
+
+      // Prepare for next iteration.
+      from = to;
+      if (!extend(v, &from) || !next_word(BUFSZ, buffer) ||
+          !add_nodes(g, from)) {
+        clear_darr(v);
+        clear_darr(&from);
+        return false;
       }
     }
+
+    clear_darr(&from);
+  }
+
+  return true;
+}
+
+bool read_subgraph(Tree** g, Darr* v, bool read_next) {
+  init_darr(v);
+  if (read_next && !next_word(BUFSZ, buffer)) return false;
+  if (strcmp(buffer, "{") == EQUAL_STRINGS) {
+    // Input a more complicated graph.
+    if (!input_graph(g, v)) return false;
   } else {
-    int id = strtoi(word);
+    // Input a single node.
+    int id = strtoi(buffer);
     return id != STRTOI_FAIL && push(v, id);
   }
   return true;
 }
 
 static bool read_strict_digraph(Tree** g) {
-  char* word = next_word();
-  if (strcmp(word, "strict") != EQUAL_STRINGS) return false;
-  word = next_word();
-  if (strcmp(word, "digraph") != EQUAL_STRINGS) return false;
+  if (!next_word(BUFSZ, buffer) || strcmp(buffer, "strict") != EQUAL_STRINGS ||
+      !next_word(BUFSZ, buffer) || strcmp(buffer, "digraph") != EQUAL_STRINGS)
+    return false;
   Darr v;
-  bool success = read_subgraph(g, &v, NULL);
+  bool success = read_subgraph(g, &v, true);
   clear_darr(&v);
   return success;
 }
 
-static void print(Tree const* g) {
+// Print the graph recursively
+void print_r(Tree const* g) {
   if (g == NULL) return;
-  print(g->left);
+  print_r(g->left);
   printf("%d -> { ", g->value);
   print_infix(g->nested);
   if (g->nested) printf(" ");
   puts("}");
-  print(g->right);
+  print_r(g->right);
+}
+
+static void print_graph(Tree const* g) {
+  puts("digraph {");
+  print_r(g);
+  puts("}");
 }
 
 int main() {
   Tree* g;
   init_tree(&g);
   bool success = read_strict_digraph(&g);
-  if (success) {
-    puts("digraph {");
-    print(g);
-    puts("}");
-  }
+  if (success) print_graph(g);
   delete_tree(&g);
   return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }
