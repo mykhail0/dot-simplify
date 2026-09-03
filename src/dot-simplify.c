@@ -24,7 +24,7 @@ static bool add_nodes(Tree** g, Darr v) {
   return true;
 }
 
-static bool add_edges(Tree** g, Darr from, Darr to) {
+static bool add_edges(Tree** g, const Darr from, const Darr to) {
   int edge[2];
   for (size_t i = 0; i < from.size; ++i) {
     edge[0] = from.arr[i];
